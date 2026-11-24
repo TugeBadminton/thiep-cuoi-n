@@ -754,7 +754,7 @@ body.editing #wish-ticker{display:none}
 /* Wishes list (GitHub copy): everyone's wishes in a scrolling box under the form */
 #wish-list{margin-top:22px;text-align:left}
 #wish-list .wl-head{font-family:var(--f-body);font-weight:600;font-size:.95rem;color:var(--ls-ink);text-align:center;margin:0 0 10px}
-#wish-list .wl-box{max-height:420px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#fff;border:1px solid var(--ls-line);border-radius:12px;box-shadow:0 4px 14px rgba(138,26,43,.06)}
+#wish-list .wl-box{position:relative;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#fff;border:1px solid var(--ls-line);border-radius:12px;box-shadow:0 4px 14px rgba(138,26,43,.06)}
 #wish-list article{padding:12px 16px;border-bottom:1px solid var(--ls-gold-soft)}
 #wish-list article:last-child{border-bottom:0}
 #wish-list article b{display:block;font-family:var(--f-body);font-weight:700;font-size:1rem;color:#2c2621}
@@ -831,7 +831,8 @@ function tickerShow(){
   wtick.el.classList.remove("on");
   setTimeout(function(){wtick.el.innerHTML='<b>'+esc(w.n)+'</b><span>'+esc(w.m)+'</span>';wtick.el.classList.add("on");},800);
 }
-function tickerRun(){if(!wtick.timer&&wtick.list.length){tickerShow();wtick.timer=setInterval(tickerShow,7000);}}
+// The corner line is switched off (25/11): the wishes list under the form shows them instead.
+function tickerRun(){}
 function tickerLoad(){
   fetch(API+"?action=wishes",{cache:"no-store"}).then(function(r){return r.json();}).then(function(d){
     if(!d||!d.ok||!Array.isArray(d.wishes)) return;
@@ -851,7 +852,17 @@ function wishListInner(){
     +wtick.list.map(function(w){return '<article><b>'+esc(w.n)+'</b><p>'+esc(w.m)+'</p></article>';}).join("")+'</div>';
 }
 function wishListHtml(){return API?'<div id="wish-list"'+(wtick.list.length?'':' hidden')+'>'+(wtick.list.length?wishListInner():'')+'</div>':'';}
-function wishListPaint(){var b=document.getElementById("wish-list");if(!b) return;b.hidden=!wtick.list.length;b.innerHTML=wtick.list.length?wishListInner():'';}
+function wishListPaint(){var b=document.getElementById("wish-list");if(!b) return;b.hidden=!wtick.list.length;b.innerHTML=wtick.list.length?wishListInner():'';wishListFit();}
+// Show at most 5 wishes; the box scrolls for the rest.
+// Re-measured whenever a wish changes size (fonts and emoji arrive after the first paint).
+var wlRO=null;
+function wishListFit(){
+  var box=document.querySelector("#wish-list .wl-box"); if(!box) return;
+  var a=box.children; box.style.maxHeight=a.length>5?(a[5].offsetTop-a[0].offsetTop)+"px":"none";
+  if(window.ResizeObserver&&box._wlFit!==1){box._wlFit=1;if(wlRO) wlRO.disconnect();wlRO=new ResizeObserver(function(){wishListFit();});[].forEach.call(a,function(x){wlRO.observe(x);});}
+}
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){if(API) wishListFit();});
+window.addEventListener("resize",function(){if(API) wishListFit();});
 var WISH_KEY="thiep-ls-gai2-wish";
 var wish={name:"",msg:"",attend:"",ev:{trai:false,gai:false},guests:1,sent:false};
 try{
@@ -996,8 +1007,6 @@ function realAddr(a){return a&&!/cập nhật/i.test(a)?a:"";}
 function mapUrl(o){var a=realAddr(o.address);return safeUrl(o.map)||(a?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(a):"");}
 function mapBox(o){
   var a=realAddr(o.address);
-  if(!IN_CLAUDE&&a) return '<div class="cer-map"><iframe title="Bản đồ" loading="lazy" src="https://maps.google.com/maps?q='+encodeURIComponent(a)+'&z=15&output=embed"></iframe></div>'
-    +(safeUrl(o.map)?'<a class="cer-mapcard" href="'+esc(safeUrl(o.map))+'" target="_blank" rel="noopener"><span class="map-ic">'+HOUSE_PIN+'</span><span>Xem chỉ đường</span></a>':'');
   var u=mapUrl(o);
   return u?'<a class="cer-mapcard" href="'+esc(u)+'" target="_blank" rel="noopener"><span class="map-ic">'+HOUSE_PIN+'</span><span>Xem chỉ đường</span></a>'
     :(ed.on?'<span class="cer-mapcard is-empty"><span class="map-ic">'+HOUSE_PIN+'</span><span>Chạm để thêm link bản đồ</span></span>':'');
